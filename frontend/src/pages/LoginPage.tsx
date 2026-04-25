@@ -1,20 +1,14 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Lock, Mail, X } from 'lucide-react';
-import { ADMIN_EMAIL, findWorkspaceMemberByEmail, useStore } from '../store';
+import { ADMIN_EMAIL, useStore } from '../store';
 import { supabase } from '../lib/supabaseClient';
 
-const buildNameFromEmail = (email: string) =>
-  email
-    .split('@')[0]
-    .split(/[._-]/)
-    .filter(Boolean)
-    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
-    .join(' ');
+
 
 export default function LoginPage() {
   const navigate = useNavigate();
-  const { projects, adminPassword, resetAdminPassword, signup } = useStore();
+  const { resetAdminPassword, signup } = useStore();
   const [mode, setMode] = useState<'login' | 'signup'>('login');
   const [email, setEmail] = useState('');
   const [name, setName] = useState('');

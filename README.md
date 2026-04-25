@@ -144,10 +144,12 @@ cd frontend
 # Install dependencies
 npm install
 
-# Configure environment variables
-# Create a .env file in the frontend root
-VITE_SUPABASE_URL=https://your-project-id.supabase.co
+# Configure environment variables (Optional: Pre-configured for Demo)
+# The project comes with a built-in demo database connection. 
+# You only need to create a .env file if you want to use your own Supabase project.
+VITE_SUPABASE_URL=your-project-url
 VITE_SUPABASE_ANON_KEY=your-anon-key
+
 
 # Start the development server
 npm run dev

@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { CalendarRange, Crown, FolderPlus, Search, Sparkles, Trash2, Users } from 'lucide-react';
 import { Sidebar } from '../components/Sidebar';
 import { TopBar } from '../components/TopBar';

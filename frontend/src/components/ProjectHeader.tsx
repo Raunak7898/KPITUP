@@ -1,6 +1,6 @@
-import { CalendarRange, Crown, FolderKanban, Sparkles, Trophy, Users } from 'lucide-react';
+import { CalendarRange, Crown, FolderKanban, Trophy, Users } from 'lucide-react';
 import { Project, User } from '../types';
-import { BrandLockup } from './BrandLockup';
+
 
 interface ProjectHeaderProps {
   project: Project;

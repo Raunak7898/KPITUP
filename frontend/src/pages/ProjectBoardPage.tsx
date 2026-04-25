@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { BookOpen, CheckCheck, CircleDot, Loader, Plus, ShieldCheck } from 'lucide-react';
 import { Sidebar } from '../components/Sidebar';
@@ -32,10 +32,7 @@ export default function ProjectBoardPage() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedTask, setSelectedTask] = useState<Task | undefined>();
 
-  const reviewTasks = useMemo(
-    () => project?.tasks.filter((task) => task.status === 'In Review') ?? [],
-    [project?.tasks],
-  );
+
 
   if (!project) {
     return null;
