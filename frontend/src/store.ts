@@ -80,10 +80,10 @@ interface AppState {
   fetchProjects: () => Promise<void>;
   addStory: (projectId: string, story: Omit<UserStory, 'id'>) => void;
   updateStory: (projectId: string, storyId: string, updates: Partial<UserStory>) => void;
-  deleteStory: (projectId: string, storyId: string) => void;
+  deleteStory: (projectId: string, storyId: string) => Promise<void>;
   addTask: (projectId: string, task: CreateTaskInput) => Promise<void>;
   updateTask: (projectId: string, taskId: string, updates: Partial<Task>) => void;
-  deleteTask: (projectId: string, taskId: string) => void;
+  deleteTask: (projectId: string, taskId: string) => Promise<void>;
   addMember: (projectId: string, member: InviteMemberInput) => void;
   addMemberDeadline: (input: CreateMemberDeadlineInput) => { success: boolean; message: string };
   deleteMemberDeadline: (deadlineId: string) => void;
@@ -761,23 +761,50 @@ export const useStore = create<AppState>()(
         })),
 
       deleteProject: async (projectId) => {
+        console.log('--- STARTING DELETE PROJECT ---');
+        console.log('Target Project ID:', projectId);
+        
         const state = useStore.getState();
+        const session = await supabase.auth.getSession();
+        
+        if (!session.data.session) {
+          alert('Error: No active session found. Please log in again.');
+          return;
+        }
+
+        console.log('Auth UID:', session.data.session.user.id);
+        console.log('Current User Role:', state.currentUser?.role);
+
         if (state.currentUser?.role !== 'admin') {
+          alert(`Error: Permission Denied. Your role is "${state.currentUser?.role}". Admin role is required.`);
           return;
         }
 
         const project = state.projects.find((p) => p.id === projectId);
-        if (!project) return;
+        if (!project) {
+          alert('Error: Project not found in local state.');
+          return;
+        }
+
+        if (!window.confirm(`FINAL CONFIRMATION: Delete project "${project.name}" from the database?`)) {
+          return;
+        }
 
         const { error } = await supabase
           .from('projects')
           .delete()
-          .match({ id: projectId });
+          .eq('id', projectId);
 
         if (error) {
-          console.error('Error deleting project:', error);
+          console.error('DATABASE ERROR:', error);
+          alert(`DATABASE ERROR: ${error.message}\nCode: ${error.code}\nDetail: ${error.details}`);
           return;
         }
+
+        console.log('DB Delete Successful');
+        alert('Project successfully deleted from database!');
+
+        console.log('Project deleted successfully from DB');
 
         set((state) => ({
           projects: state.projects.filter((p) => p.id !== projectId),
@@ -809,7 +836,13 @@ export const useStore = create<AppState>()(
               : project,
           ),
         })),
-      deleteStory: (projectId, storyId) =>
+      deleteStory: async (projectId, storyId) => {
+        const { error } = await supabase.from('user_stories').delete().match({ id: storyId });
+        if (error) {
+          console.error('Error deleting story:', error);
+          return;
+        }
+
         set((state) => ({
           projects: state.projects.map((project) =>
             project.id === projectId
@@ -819,7 +852,8 @@ export const useStore = create<AppState>()(
                 }
               : project
           ),
-        })),
+        }));
+      },
 
       addTask: async (projectId, taskInput) => {
         const state = useStore.getState();
@@ -935,23 +969,24 @@ export const useStore = create<AppState>()(
           };
         }),
 
-      deleteTask: (projectId, taskId) =>
-        set((state) => {
-          if (state.currentUser?.role !== 'admin') {
-            return state;
-          }
+      deleteTask: async (projectId, taskId) => {
+        const { error } = await supabase.from('tasks').delete().match({ id: taskId });
+        if (error) {
+          console.error('Error deleting task:', error);
+          return;
+        }
 
-          return {
-            projects: state.projects.map((project) =>
-              project.id === projectId
-                ? {
-                    ...project,
-                    tasks: project.tasks.filter((task) => task.id !== taskId),
-                  }
-                : project,
-            ),
-          };
-        }),
+        set((state) => ({
+          projects: state.projects.map((project) =>
+            project.id === projectId
+              ? {
+                  ...project,
+                  tasks: project.tasks.filter((task) => task.id !== taskId),
+                }
+              : project,
+          ),
+        }));
+      },
 
       addMember: (projectId, memberInput) =>
         set((state) => {

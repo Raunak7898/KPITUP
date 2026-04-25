@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router-dom';
 import { BookOpen, CheckCheck, CircleDot, Loader, Plus, ShieldCheck } from 'lucide-react';
 import { Sidebar } from '../components/Sidebar';
 import { TopBar } from '../components/TopBar';
@@ -18,11 +18,13 @@ export default function ProjectBoardPage() {
     allMembers,
     addTask,
     updateTask,
+    deleteProject,
     deleteTask,
     acceptTask,
     submitTaskForReview,
     reviewTask,
   } = useStore();
+  const navigate = useNavigate();
 
   const project = projects.find((entry) => entry.id === id) ?? projects[0];
   const isAdmin = currentUser?.role === 'admin';
@@ -30,23 +32,13 @@ export default function ProjectBoardPage() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedTask, setSelectedTask] = useState<Task | undefined>();
 
-
+  const reviewTasks = useMemo(
+    () => project?.tasks.filter((task) => task.status === 'In Review') ?? [],
+    [project?.tasks],
+  );
 
   if (!project) {
-    return (
-      <div className="flex h-screen overflow-hidden bg-[var(--bg-main)] text-[var(--text-primary)]">
-        <Sidebar />
-        <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
-          <TopBar />
-          <div className="flex h-full items-center justify-center">
-            <div className="text-center">
-              <h2 className="text-xl font-bold text-[var(--text-primary)]">Project not found</h2>
-              <p className="mt-2 text-sm text-[var(--text-secondary)]">You may not have access to this project, or it was deleted.</p>
-            </div>
-          </div>
-        </div>
-      </div>
-    );
+    return null;
   }
 
   const getTasksByStatus = (status: Task['status']) => project.tasks.filter((task) => task.status === status);
@@ -95,13 +87,20 @@ export default function ProjectBoardPage() {
     }
   };
 
+  const handleDeleteProject = async () => {
+    console.log('handleDeleteProject triggered');
+    alert('Delete process initiated...');
+    await deleteProject(project.id);
+    navigate(isAdmin ? '/admin' : '/dashboard');
+  };
+
   return (
     <div className="flex h-screen overflow-hidden bg-[var(--bg-main)] text-[var(--text-primary)]">
       <Sidebar />
 
       <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
         <TopBar />
-        <ProjectHeader project={project} currentUser={currentUser} />
+        <ProjectHeader project={project} currentUser={currentUser} onDeleteProject={handleDeleteProject} />
 
         <div className="flex items-center justify-between border-b border-[var(--border-color)] px-6">
           <div className="flex items-center gap-1">
@@ -148,9 +147,8 @@ export default function ProjectBoardPage() {
             <StoriesView projectId={project.id} isAdmin={isAdmin} />
           ) : (
             <div className="space-y-6">
-              <div>
-                <div className="app-scroll min-w-0 overflow-x-auto pb-2">
-                  <div className="flex min-w-max gap-5">
+              <div className="app-scroll min-w-0 overflow-x-auto pb-2">
+                <div className="flex min-w-max gap-5">
                     <KanbanColumn
                       status="To Do"
                       tasks={getTasksByStatus('To Do')}
@@ -190,20 +188,20 @@ export default function ProjectBoardPage() {
                           setIsModalOpen(true);
                         }
                       }}
-                      renderTaskFooter={(task) => isAdmin ? (
-                        <div className="mt-4 space-y-2 border-t border-[var(--border-color)] pt-4" onClick={(e) => e.stopPropagation()}>
+                      renderTaskExtras={(task) => isAdmin ? (
+                        <div className="mt-3 space-y-2 border-t border-[var(--border-color)] pt-3">
                           <textarea
                             placeholder="Feedback (optional)"
                             className="w-full rounded-xl border border-[var(--border-color)] bg-[var(--bg-main)] px-3 py-2 text-xs text-[var(--text-primary)] outline-none focus:border-[var(--accent-blue)]"
                             rows={2}
-                            id={`feedback-board-${task.id}`}
+                            id={`feedback-${task.id}`}
+                            onClick={(e) => e.stopPropagation()}
                           />
                           <div className="flex gap-2">
                             <button
-                              type="button"
                               onClick={(e) => {
                                 e.stopPropagation();
-                                const feedback = (document.getElementById(`feedback-board-${task.id}`) as HTMLTextAreaElement)?.value;
+                                const feedback = (document.getElementById(`feedback-${task.id}`) as HTMLTextAreaElement)?.value;
                                 reviewTask(project.id, task.id, 'approved', feedback);
                               }}
                               className="btn-primary-theme flex-1 rounded-xl py-2 text-[10px] font-black uppercase tracking-widest transition hover:opacity-90"
@@ -211,10 +209,9 @@ export default function ProjectBoardPage() {
                               Approve
                             </button>
                             <button
-                              type="button"
                               onClick={(e) => {
                                 e.stopPropagation();
-                                const feedback = (document.getElementById(`feedback-board-${task.id}`) as HTMLTextAreaElement)?.value;
+                                const feedback = (document.getElementById(`feedback-${task.id}`) as HTMLTextAreaElement)?.value;
                                 reviewTask(project.id, task.id, 'changes_requested', feedback);
                               }}
                               className="btn-warm-theme flex-1 rounded-xl py-2 text-[10px] font-black uppercase tracking-widest transition hover:opacity-90"
@@ -240,9 +237,8 @@ export default function ProjectBoardPage() {
                   </div>
                 </div>
               </div>
-            </div>
-          )}
-        </main>
+            )}
+          </main>
       </div>
 
       <TaskModal

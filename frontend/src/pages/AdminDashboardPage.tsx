@@ -6,7 +6,7 @@ import { TopBar } from '../components/TopBar';
 import { useStore } from '../store';
 
 export default function AdminDashboardPage() {
-  const { currentUser, projects, reviewTask } = useStore();
+  const { currentUser, projects, reviewTask, deleteProject } = useStore();
   const [feedback, setFeedback] = useState<Record<string, string>>({});
 
   if (currentUser?.role !== 'admin') {
@@ -208,19 +208,35 @@ export default function AdminDashboardPage() {
 
                   <div className="mt-5 space-y-3">
                     {projects.map((project) => (
-                      <Link
-                        key={project.id}
-                        to={`/project/${project.id}`}
-                        className="flex items-center justify-between rounded-[24px] border border-[var(--border-color)] bg-[var(--bg-main)] px-4 py-4 transition hover:border-[var(--accent-blue)]"
-                      >
-                        <div>
-                          <p className="text-base font-black text-[var(--text-primary)]">{project.name}</p>
-                          <p className="mt-1 text-sm text-[var(--text-secondary)]">
-                            {project.tasks.length} tasks, {project.tasks.filter((task) => task.status === 'In Review').length} in review
-                          </p>
-                        </div>
-                        <Crown size={18} className="text-[var(--accent-warm)]" />
-                      </Link>
+                      <div key={project.id} className="group relative">
+                        <Link
+                          to={`/project/${project.id}`}
+                          className="flex items-center justify-between rounded-[24px] border border-[var(--border-color)] bg-[var(--bg-main)] px-4 py-4 transition hover:border-[var(--accent-blue)]"
+                        >
+                          <div>
+                            <p className="text-base font-black text-[var(--text-primary)]">{project.name}</p>
+                            <p className="mt-1 text-sm text-[var(--text-secondary)]">
+                              {project.tasks.length} tasks, {project.tasks.filter((task) => task.status === 'In Review').length} in review
+                            </p>
+                          </div>
+                          <div className="flex items-center gap-4">
+                            <Crown size={18} className="text-[var(--accent-warm)]" />
+                            <button
+                              onClick={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                if (window.confirm(`Are you sure you want to delete project "${project.name}"?`)) {
+                                  deleteProject(project.id);
+                                }
+                              }}
+                              className="rounded-lg p-2 text-rose-500 opacity-0 transition-opacity hover:bg-rose-500/10 group-hover:opacity-100"
+                              title="Delete Project"
+                            >
+                              <XCircle size={18} />
+                            </button>
+                          </div>
+                        </Link>
+                      </div>
                     ))}
                   </div>
                 </div>

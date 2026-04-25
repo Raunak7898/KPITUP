@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { CalendarRange, Crown, FolderPlus, Search, Sparkles, Trash2, Users } from 'lucide-react';
 import { Sidebar } from '../components/Sidebar';
 import { TopBar } from '../components/TopBar';
@@ -7,6 +7,7 @@ import { useStore } from '../store';
 
 export default function ProjectsPage() {
   const { projects, addProject, deleteProject, currentUser } = useStore();
+  const navigate = useNavigate();
   const [search, setSearch] = useState('');
   const [isCreating, setIsCreating] = useState(false);
   const [name, setName] = useState('');
@@ -43,12 +44,14 @@ export default function ProjectsPage() {
     }
   };
 
-  const handleDeleteProject = (event: React.MouseEvent, projectId: string, projectName: string) => {
+  const handleDeleteProject = async (event: React.MouseEvent, projectId: string, projectName: string) => {
     event.preventDefault();
     event.stopPropagation();
     
+    console.log('ProjectsPage handleDeleteProject triggered for:', projectId);
     if (window.confirm(`Are you sure you want to delete "${projectName}"? This action cannot be undone.`)) {
-      deleteProject(projectId);
+      await deleteProject(projectId);
+      alert('Delete request sent to database.');
     }
   };
 
@@ -155,10 +158,10 @@ export default function ProjectsPage() {
               {filteredProjects.map((project) => {
                 const reviewCount = project.tasks.filter((task) => task.status === 'In Review').length;
                 return (
-                  <Link
+                  <div
                     key={project.id}
-                    to={`/project/${project.id}`}
-                    className="panel-card group relative overflow-hidden rounded-[30px] p-6 transition hover:-translate-y-1"
+                    onClick={() => navigate(`/project/${project.id}`)}
+                    className="panel-card group relative cursor-pointer overflow-hidden rounded-[30px] p-6 transition hover:-translate-y-1"
                   >
                     <div className={`absolute inset-0 bg-gradient-to-br ${project.theme} opacity-60`} />
                     <div className="relative z-10">
@@ -229,7 +232,7 @@ export default function ProjectsPage() {
                         </div>
                       </div>
                     </div>
-                  </Link>
+                  </div>
                 );
               })}
             </section>
