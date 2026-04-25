@@ -43,7 +43,8 @@ export const TaskModal = ({ isOpen, onClose, onSave, onDelete, initialTask, memb
       return;
     }
 
-    const firstMember = members.find((member) => member.role !== 'admin') ?? members[0];
+    const availableMembers = members.filter((m) => m.role !== 'admin');
+    const firstMember = availableMembers.length > 0 ? availableMembers[0] : null;
     setTitle('');
     setDescription('');
     setAssigneeId(firstMember?.id ?? '');
@@ -133,13 +134,19 @@ export const TaskModal = ({ isOpen, onClose, onSave, onDelete, initialTask, memb
                   onChange={(event) => setAssigneeId(event.target.value)}
                   className="w-full appearance-none rounded-2xl border border-[var(--border-color)] bg-[var(--bg-main)] py-3.5 pl-12 pr-4 text-sm text-[var(--text-primary)] outline-none transition focus:border-[var(--accent-blue)]"
                 >
-                  {members
-                    .filter((member) => member.role !== 'admin')
-                    .map((member) => (
-                      <option key={member.id} value={member.id}>
-                        {member.name}
-                      </option>
-                    ))}
+                  {members.filter(m => m.role !== 'admin').length > 0 ? (
+                    members
+                      .filter((member) => member.role !== 'admin')
+                      .map((member) => (
+                        <option key={member.id} value={member.id}>
+                          {member.name}
+                        </option>
+                      ))
+                  ) : (
+                    <option value="" disabled>
+                      No members in project yet
+                    </option>
+                  )}
                 </select>
               </div>
             </label>

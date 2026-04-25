@@ -7,6 +7,7 @@ interface TaskCardProps {
   primaryActionLabel?: string;
   onPrimaryAction?: () => void;
   highlight?: 'default' | 'review' | 'done';
+  footer?: React.ReactNode;
 }
 
 const priorityTone: Record<Task['priority'], string> = {
@@ -88,13 +89,18 @@ export const TaskCard = ({
       {primaryActionLabel && onPrimaryAction ? (
         <button
           type="button"
-          onClick={onPrimaryAction}
+          onClick={(e) => {
+            e.stopPropagation();
+            onPrimaryAction();
+          }}
           className="btn-primary-theme mt-5 inline-flex items-center gap-2 rounded-2xl px-4 py-2.5 text-xs font-black uppercase tracking-[0.16em] transition"
         >
           <AlertCircle size={14} />
           {primaryActionLabel}
         </button>
       ) : null}
+
+      {footer}
     </div>
   );
 };

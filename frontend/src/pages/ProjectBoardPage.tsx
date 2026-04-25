@@ -30,13 +30,23 @@ export default function ProjectBoardPage() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedTask, setSelectedTask] = useState<Task | undefined>();
 
-  const reviewTasks = useMemo(
-    () => project?.tasks.filter((task) => task.status === 'In Review') ?? [],
-    [project?.tasks],
-  );
+
 
   if (!project) {
-    return null;
+    return (
+      <div className="flex h-screen overflow-hidden bg-[var(--bg-main)] text-[var(--text-primary)]">
+        <Sidebar />
+        <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
+          <TopBar />
+          <div className="flex h-full items-center justify-center">
+            <div className="text-center">
+              <h2 className="text-xl font-bold text-[var(--text-primary)]">Project not found</h2>
+              <p className="mt-2 text-sm text-[var(--text-secondary)]">You may not have access to this project, or it was deleted.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
   }
 
   const getTasksByStatus = (status: Task['status']) => project.tasks.filter((task) => task.status === status);
@@ -138,8 +148,8 @@ export default function ProjectBoardPage() {
             <StoriesView projectId={project.id} isAdmin={isAdmin} />
           ) : (
             <div className="space-y-6">
-              <div className="grid gap-6 xl:grid-cols-[1fr_320px]">
-                <div className="app-scroll overflow-x-auto pb-2">
+              <div>
+                <div className="app-scroll min-w-0 overflow-x-auto pb-2">
                   <div className="flex min-w-max gap-5">
                     <KanbanColumn
                       status="To Do"
@@ -180,6 +190,40 @@ export default function ProjectBoardPage() {
                           setIsModalOpen(true);
                         }
                       }}
+                      renderTaskFooter={(task) => isAdmin ? (
+                        <div className="mt-4 space-y-2 border-t border-[var(--border-color)] pt-4" onClick={(e) => e.stopPropagation()}>
+                          <textarea
+                            placeholder="Feedback (optional)"
+                            className="w-full rounded-xl border border-[var(--border-color)] bg-[var(--bg-main)] px-3 py-2 text-xs text-[var(--text-primary)] outline-none focus:border-[var(--accent-blue)]"
+                            rows={2}
+                            id={`feedback-board-${task.id}`}
+                          />
+                          <div className="flex gap-2">
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                const feedback = (document.getElementById(`feedback-board-${task.id}`) as HTMLTextAreaElement)?.value;
+                                reviewTask(project.id, task.id, 'approved', feedback);
+                              }}
+                              className="btn-primary-theme flex-1 rounded-xl py-2 text-[10px] font-black uppercase tracking-widest transition hover:opacity-90"
+                            >
+                              Approve
+                            </button>
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                const feedback = (document.getElementById(`feedback-board-${task.id}`) as HTMLTextAreaElement)?.value;
+                                reviewTask(project.id, task.id, 'changes_requested', feedback);
+                              }}
+                              className="btn-warm-theme flex-1 rounded-xl py-2 text-[10px] font-black uppercase tracking-widest transition hover:opacity-90"
+                            >
+                              Reject
+                            </button>
+                          </div>
+                        </div>
+                      ) : null}
                     />
                     <KanbanColumn
                       status="Done"
@@ -195,62 +239,6 @@ export default function ProjectBoardPage() {
                     />
                   </div>
                 </div>
-
-                <aside className="panel-card h-fit rounded-[28px] p-5">
-                  <p className="text-xs font-bold uppercase tracking-[0.22em] text-[var(--accent-blue)]">Review Snapshot</p>
-                  <h3 className="mt-3 text-xl font-black text-[var(--text-primary)]">Admin queue for this project</h3>
-                  <p className="mt-2 text-sm leading-6 text-[var(--text-secondary)]">
-                    Submitted tasks land here and on the admin dashboard. Approve to move them into Done, reject to send
-                    them back to In Progress.
-                  </p>
-
-                  <div className="mt-5 space-y-3">
-                    {reviewTasks.length ? (
-                      reviewTasks.map((task) => (
-                        <div key={task.id} className="rounded-[22px] border border-[var(--border-color)] bg-[var(--bg-main)] p-4">
-                          <p className="text-sm font-bold text-[var(--text-primary)]">{task.title}</p>
-                          <p className="mt-1 text-xs text-[var(--text-secondary)]">
-                            Submitted by {task.assigneeName}
-                          </p>
-                          {isAdmin && (
-                            <div className="mt-3 space-y-2">
-                              <textarea
-                                placeholder="Feedback (optional)"
-                                className="w-full rounded-xl border border-[var(--border-color)] bg-[var(--bg-card)] px-3 py-2 text-xs text-[var(--text-primary)] outline-none focus:border-[var(--accent-blue)]"
-                                rows={2}
-                                id={`feedback-${task.id}`}
-                              />
-                              <div className="flex gap-2">
-                                <button
-                                  onClick={() => {
-                                    const feedback = (document.getElementById(`feedback-${task.id}`) as HTMLTextAreaElement)?.value;
-                                    reviewTask(project.id, task.id, 'approved', feedback);
-                                  }}
-                                  className="btn-primary-theme flex-1 rounded-xl py-2 text-[10px] font-black uppercase tracking-widest transition hover:opacity-90"
-                                >
-                                  Approve
-                                </button>
-                                <button
-                                  onClick={() => {
-                                    const feedback = (document.getElementById(`feedback-${task.id}`) as HTMLTextAreaElement)?.value;
-                                    reviewTask(project.id, task.id, 'changes_requested', feedback);
-                                  }}
-                                  className="btn-warm-theme flex-1 rounded-xl py-2 text-[10px] font-black uppercase tracking-widest transition hover:opacity-90"
-                                >
-                                  Reject
-                                </button>
-                              </div>
-                            </div>
-                          )}
-                        </div>
-                      ))
-                    ) : (
-                      <div className="rounded-[22px] border border-dashed border-[var(--border-color)] bg-[var(--bg-main)] px-4 py-8 text-center text-sm leading-6 text-[var(--text-muted)]">
-                        No tasks are waiting for admin review in this project.
-                      </div>
-                    )}
-                  </div>
-                </aside>
               </div>
             </div>
           )}

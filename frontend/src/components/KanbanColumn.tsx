@@ -10,6 +10,7 @@ interface KanbanColumnProps {
   onTaskClick: (task: Task) => void;
   getPrimaryActionLabel?: (task: Task) => string | null;
   onPrimaryAction?: (task: Task) => void;
+  renderTaskFooter?: (task: Task) => React.ReactNode;
 }
 
 export const KanbanColumn = ({
@@ -20,6 +21,7 @@ export const KanbanColumn = ({
   onTaskClick,
   getPrimaryActionLabel,
   onPrimaryAction,
+  renderTaskFooter,
 }: KanbanColumnProps) => (
   <section className="panel-card flex min-h-[520px] min-w-[300px] max-w-[340px] flex-col rounded-[28px] p-4">
     <div className="border-b border-[var(--border-color)] px-2 pb-4">
@@ -49,6 +51,7 @@ export const KanbanColumn = ({
             primaryActionLabel={getPrimaryActionLabel?.(task) ?? undefined}
             onPrimaryAction={onPrimaryAction ? () => onPrimaryAction(task) : undefined}
             highlight={status === 'In Review' ? 'review' : status === 'Done' ? 'done' : 'default'}
+            footer={renderTaskFooter?.(task)}
           />
         ))
       ) : (
