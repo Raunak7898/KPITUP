@@ -1,0 +1,169 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --bg-main: #ffffff;
+    --bg-darker: #f7f7f7;
+    --bg-card: rgba(255, 255, 255, 0.9);
+    --bg-card-hover: rgba(255, 255, 255, 0.98);
+    --border-color: rgba(17, 17, 17, 0.1);
+    --text-primary: #111111;
+    --text-secondary: #4b4b4b;
+    --text-muted: #767676;
+    --accent-blue: #111111;
+    --accent-blue-hover: #2d2d2d;
+    --accent-warm: #5e5e5e;
+    --accent-foreground: #ffffff;
+    --accent-warm-foreground: #ffffff;
+  }
+
+  .dark {
+    --bg-main: #0a0a0a;
+    --bg-darker: #121212;
+    --bg-card: rgba(18, 18, 18, 0.9);
+    --bg-card-hover: rgba(28, 28, 28, 0.98);
+    --border-color: rgba(255, 255, 255, 0.12);
+    --text-primary: #ffffff;
+    --text-secondary: #c5c5c5;
+    --text-muted: #8b8b8b;
+    --accent-blue: #ffffff;
+    --accent-blue-hover: #d9d9d9;
+    --accent-warm: #b3b3b3;
+    --accent-foreground: #0a0a0a;
+    --accent-warm-foreground: #0a0a0a;
+  }
+
+  * {
+    border-color: var(--border-color);
+  }
+
+  html {
+    color-scheme: light;
+  }
+
+  html.dark {
+    color-scheme: dark;
+  }
+
+  body {
+    min-height: 100vh;
+    background:
+      radial-gradient(circle at top left, rgba(255, 255, 255, 0.06), transparent 28%),
+      radial-gradient(circle at top right, rgba(255, 255, 255, 0.04), transparent 24%),
+      linear-gradient(180deg, var(--bg-darker) 0%, var(--bg-main) 100%);
+    color: var(--text-primary);
+    font-family: 'Segoe UI Variable Text', 'Segoe UI', 'Trebuchet MS', sans-serif;
+  }
+
+  button,
+  input,
+  select,
+  textarea {
+    font: inherit;
+  }
+}
+
+@layer components {
+  .panel-card {
+    background: var(--bg-card);
+    backdrop-filter: blur(20px);
+    border: 1px solid var(--border-color);
+    box-shadow: 
+      0 4px 6px -1px rgba(0, 0, 0, 0.05),
+      0 20px 25px -5px rgba(0, 0, 0, 0.05),
+      inset 0 0 0 1px rgba(255, 255, 255, 0.05);
+  }
+
+  .panel-muted {
+    background: linear-gradient(135deg, var(--bg-card-hover), var(--bg-card));
+    border: 1px solid var(--border-color);
+    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.03);
+  }
+
+  .metric-card {
+    background:
+      linear-gradient(180deg, rgba(255, 255, 255, 0.04), transparent),
+      var(--bg-card);
+    border: 1px solid var(--border-color);
+    backdrop-filter: blur(20px);
+  }
+
+  .accent-badge {
+    @apply inline-flex items-center gap-2 rounded-full px-3 py-1 text-[11px] font-bold uppercase tracking-[0.28em];
+    background: rgba(255, 255, 255, 0.08);
+    color: var(--accent-blue);
+  }
+
+  .task-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: 1.25rem;
+    padding: 1rem;
+    transition: transform 0.2s ease, background 0.2s ease, box-shadow 0.2s ease;
+    cursor: pointer;
+    box-shadow: 0 16px 32px rgba(0, 0, 0, 0.08);
+  }
+
+  .task-card:hover {
+    background: var(--bg-card-hover);
+    transform: translateY(-2px);
+  }
+
+  .task-card:active {
+    cursor: grabbing;
+  }
+
+  .btn-primary-theme {
+    background: var(--accent-blue);
+    color: var(--accent-foreground);
+  }
+
+  .btn-primary-theme:hover {
+    background: var(--accent-blue-hover);
+    color: var(--accent-foreground);
+  }
+
+  .btn-warm-theme {
+    background: var(--accent-warm);
+    color: var(--accent-warm-foreground);
+  }
+
+  .btn-warm-theme:hover {
+    opacity: 0.92;
+    color: var(--accent-warm-foreground);
+  }
+
+  .app-scroll::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+
+  .app-scroll::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  .app-scroll::-webkit-scrollbar-thumb {
+    background: rgba(128, 128, 128, 0.6);
+    border-radius: 999px;
+  }
+}
+
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(128, 128, 128, 0.55);
+  border-radius: 999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(160, 160, 160, 0.8);
+}
