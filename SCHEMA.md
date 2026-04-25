@@ -1,73 +1,63 @@
-# KPIT Task Workflow - Database Schema
+# Database Schema Documentation
 
-This document describes the PostgreSQL schema used in the Supabase backend.
+This document details the relational structure of the KPIT Task Workflow database.
 
-## Tables
+## 📊 Entity Relationship Diagram
+
+```mermaid
+erDiagram
+    PROFILES ||--o{ PROJECTS : "owns"
+    PROFILES ||--o{ PROJECT_MEMBERS : "belongs_to"
+    PROJECTS ||--o{ PROJECT_MEMBERS : "contains"
+    PROJECTS ||--o{ TASKS : "manages"
+    PROFILES ||--o{ TASKS : "assigned_to"
+    TASKS ||--o| TASK_REVIEWS : "reviewed_by"
+    USER_STORIES ||--o{ TASKS : "grouping"
+    PROJECTS ||--o{ USER_STORIES : "contains"
+```
+
+## 🗄 Table Definitions
 
 ### 1. `profiles`
-Stores user profile information. Created automatically via trigger on signup.
-- `id`: UUID (Primary Key, references auth.users)
-- `email`: TEXT (Unique)
-- `full_name`: TEXT
-- `avatar_url`: TEXT
-- `role`: workspace_role (Enum: 'admin', 'member')
-- `title`: TEXT (Default: 'Contributor')
-- `total_points`: INTEGER (Default: 0)
-- `is_online`: BOOLEAN
-- `updated_at`: TIMESTAMPTZ
+Maintains user identity and gamification points.
+- `id` (UUID, PK): Primary identifier linked to Supabase Auth.
+- `role` (workspace_role): Enum `admin` | `member`.
+- `total_points` (INT): Accumulated points from completed tasks.
+- `title` (TEXT): Custom designation (e.g., 'Lead Developer').
 
 ### 2. `projects`
-Stores project boards.
-- `id`: UUID (Primary Key)
-- `name`: TEXT (Required)
-- `description`: TEXT
-- `owner_id`: UUID (References profiles)
-- `owner_email`: TEXT
-- `due_date`: DATE
-- `created_at`: TIMESTAMPTZ
+Containers for task boards.
+- `owner_id` (UUID): References the creator profile.
+- `theme` (TEXT): CSS gradient tokens for UI branding.
 
 ### 3. `project_members`
-Junction table for project assignments.
-- `project_id`: UUID (References projects)
-- `profile_id`: UUID (References profiles)
-- `project_role`: TEXT
-- **Unique Constraint**: (project_id, profile_id)
+A join table facilitating many-to-many relationships between projects and users.
+- `project_id` (UUID, FK)
+- `profile_id` (UUID, FK)
+- `project_role` (TEXT): Context-specific role (e.g., 'Reviewer').
 
 ### 4. `tasks`
-Core task data with workflow status.
-- `id`: UUID (Primary Key)
-- `project_id`: UUID (References projects)
-- `story_id`: UUID (References user_stories)
-- `title`: TEXT
-- `description`: TEXT
-- `priority`: task_priority (Enum: 'low', 'medium', 'high')
-- `status`: task_status (Enum: 'todo', 'in_progress', 'in_review', 'done')
-- `points`: INTEGER (Default: 5)
-- `assignee_id`: UUID (References profiles)
-- `created_by`: UUID (References profiles)
-- `due_date`: DATE
-- `accepted_at`: TIMESTAMPTZ
-- `submitted_at`: TIMESTAMPTZ
-- `reviewed_at`: TIMESTAMPTZ
+The core transactional table.
+- `points` (INT): Reward value for completion.
+- `status` (task_status): `todo`, `in_progress`, `in_review`, `done`.
+- `assignee_id` (UUID, FK): The user responsible for execution.
 
 ### 5. `task_reviews`
-Stores historical data for task reviews (approvals/rejections).
-- `id`: UUID (Primary Key)
-- `task_id`: UUID (References tasks)
-- `reviewer_id`: UUID (References profiles)
-- `decision`: review_decision (Enum: 'approve', 'reject')
-- `comment`: TEXT
-- `reviewed_at`: TIMESTAMPTZ
+Audit log for quality control.
+- `decision` (review_decision): `approve` | `reject`.
+- `comment` (TEXT): Feedback from the admin.
 
-## Custom Types (Enums)
+## ⚙️ Automated Logic (Triggers)
 
-- `workspace_role`: `('admin', 'member')`
-- `task_priority`: `('low', 'medium', 'high')`
-- `task_status`: `('todo', 'in_progress', 'in_review', 'done')`
-- `review_decision`: `('approve', 'reject')`
+### `on_auth_user_created`
+- **Location**: `profiles`
+- **Purpose**: Creates a profile row immediately after signup.
+- **Role Logic**: Automatically assigns `admin` role to `raunak789805@gmail.com`.
 
-## Triggers & Functions
+### `on_project_created`
+- **Location**: `projects`
+- **Purpose**: Automatically adds the creator to the `project_members` table to ensure immediate visibility.
 
-- **`handle_new_user`**: Automatically inserts a row into `profiles` whenever a new user confirms their email in Supabase Auth. It also handles assigning the 'admin' role to a specific hardcoded email.
-- **`handle_new_project`**: Automatically adds the project creator (admin) to the `project_members` table as an admin.
-- **`enforce_task_workflow`**: (Optional logic) Ensures tasks follow the correct state transition (e.g., cannot move from `todo` straight to `done` without `in_progress`).
+### `tasks_enforce_workflow`
+- **Location**: `tasks`
+- **Purpose**: A safety net trigger that populates `accepted_at`, `submitted_at`, and `reviewed_at` timestamps based on status transitions.

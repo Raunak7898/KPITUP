@@ -1,57 +1,52 @@
-# KPIT Task Workflow - Architecture & Design Decisions
+# Architecture & Technical Design
 
-This document outlines the architectural patterns, design decisions, and tradeoffs made during the development of the KPIT Task Management System.
+This document provides a deep dive into the engineering principles and design patterns that power the KPIT Task Workflow system.
 
-## Technology Stack
+## 🏗 High-Level Architecture
 
-- **Frontend**: React (with TypeScript)
-- **Bundler**: Vite
-- **State Management**: Zustand (with Persist Middleware)
-- **Styling**: Vanilla CSS (Premium Custom Design System)
-- **Icons**: Lucide React
-- **Backend/Database**: Supabase (PostgreSQL)
-- **Authentication**: Supabase Auth (Email/Password)
-- **Storage**: Supabase Storage (for avatars/attachments)
+The system utilizes a **BaaS (Backend-as-a-Service)** model with Supabase, paired with a React-based frontend. The architecture is designed to be "Database-First," meaning the frontend reflects the state of the database atomically.
 
-## Architecture Overview
+```mermaid
+graph TD
+    User((User)) -->|Interacts| UI[React Frontend]
+    UI -->|Action| Store[Zustand Store]
+    Store -->|API Call| Supabase[Supabase Client]
+    Supabase -->|SQL Queries| DB[(PostgreSQL)]
+    DB -->|Triggers| Logic[Functions/Triggers]
+    Logic -->|Sync| DB
+    Supabase -->|JWT Auth| Auth[Supabase Auth]
+    Store -.->|Persist| LocalStorage[(Browser LocalStorage)]
+```
 
-The application follows a **DB-First Architecture**. While the frontend maintains a local state via Zustand for responsiveness, the "Source of Truth" is always the Supabase PostgreSQL database.
+## 🛠 Design Decisions
 
-### Key Architectural Layers:
+### 1. Unified State Management (Zustand)
+Instead of prop-drilling or complex Redux boilerplate, we use **Zustand**. 
+- **Reasoning**: It provides a hook-based API that is extremely performant. 
+- **Persistence**: We utilize the `persist` middleware to cache projects and tasks locally. This allows for an **Instant UI** experience where data is visible immediately upon load, while `fetchProjects` synchronizes with the DB in the background.
 
-1.  **State Layer (Zustand)**:
-    - Centralizes all application state (projects, tasks, members, notifications).
-    - Uses the `persist` middleware to ensure state survives page refreshes.
-    - Handles asynchronous interactions with Supabase, providing a bridge between the UI and the Database.
+### 2. Relational Data Integrity
+Unlike NoSQL solutions, we rely on PostgreSQL's relational power:
+- **Foreign Keys**: Ensure that tasks cannot exist without projects, and project members must be valid profiles.
+- **Triggers**: Automate background tasks like updating `updated_at` timestamps or linking admins to new projects. This reduces frontend logic and ensures data consistency even if the client-side code fails.
 
-2.  **Database Layer (Supabase/PostgreSQL)**:
-    - Uses relational schema to enforce data integrity.
-    - Implements **Row Level Security (RLS)** to handle authorization at the database level.
-    - Uses **PostgreSQL Triggers** for automated workflows (e.g., creating profiles on signup, updating timestamps, auto-linking project owners).
+### 3. RLS (Row Level Security) as the Firewall
+Authorization is handled at the **Database Row Layer**. 
+- The frontend doesn't "ask" for data it shouldn't see; the database **refuses** to return rows that the user isn't authorized to view.
+- This creates a massive security advantage, as the API surface is inherently limited by the user's JWT identity.
 
-3.  **UI Component Layer**:
-    - Built using a custom design system focused on high-end aesthetics (glassmorphism, vibrant gradients, micro-animations).
-    - Components are decoupled from business logic, interacting with the system through Zustand hooks.
+## 🔄 Data Flow: Task Workflow
 
-## Design Decisions & Tradeoffs
+The lifecycle of a task is controlled by a state machine enforced by both the UI and DB triggers.
 
-### 1. Zustand vs. Redux
-- **Decision**: Used Zustand.
-- **Rationale**: Zustand provides a much simpler boilerplate while still being highly performant. Given the rapid development requirement, the reduced complexity of Zustand allowed for faster iteration on the task workflow logic.
+1. **Creation**: Admin creates a task in the `todo` state.
+2. **Acceptance**: Member accepts task -> Status moves to `in_progress`. DB records `accepted_at`.
+3. **Submission**: Member completes work -> Status moves to `in_review`. DB records `submitted_at`.
+4. **Validation**: Admin reviews work:
+   - **Approve**: Status moves to `done`. `reviewed_at` is set.
+   - **Reject**: Status moves back to `in_progress`. Feedback is logged.
 
-### 2. DB-First vs. Local-First (Offline Sync)
-- **Decision**: DB-First.
-- **Rationale**: For a collaborative task management tool, consistency is critical. By waiting for Supabase confirmation before final state updates (or using optimistic updates with a DB refresh), we avoid complex conflict resolution logic required for offline-first apps.
+## ⚖️ Tradeoffs & Compromises
 
-### 3. RLS-Driven Security
-- **Decision**: Implementing all authorization logic inside Supabase RLS.
-- **Rationale**: This ensures that even if the frontend is compromised, the data remains secure. The backend enforces that a member can only see projects they are assigned to, and only admins can approve tasks.
-
-### 4. Vanilla CSS over Tailwind
-- **Decision**: Vanilla CSS.
-- **Rationale**: To achieve a "Wowed" premium aesthetic with complex gradients and unique animations, Vanilla CSS offers more fine-grained control over the design tokens without the constraints of utility classes.
-
-## Tradeoffs
-
-- **Manual Refreshes**: Currently, the app relies on manual `fetchProjects` calls after mutations. While Supabase supports Real-time channels, we prioritized atomic consistency for the initial version to ensure the workflow transitions (ToDo -> Review -> Done) were 100% reliable before adding real-time overhead.
-- **Client-Side Data Mapping**: The app maps DB enums (lowercase) to UI strings (Title Case) on the client. This keeps the DB clean while providing a user-friendly interface, though it requires maintenance in the `store.ts` mapping helpers.
+- **Polling vs Real-time**: While Supabase supports Real-time, we opted for a pull-based model (with optimistic UI updates) to ensure 100% transaction reliability during the initial build. Future versions will integrate `supabase.channel()` for collaborative live updates.
+- **Client-Side Enums**: Mapping database enums to UI display strings happens in the Zustand store. This creates a dependency between DB schema names and Store constants, but allows for localized, user-friendly labels.

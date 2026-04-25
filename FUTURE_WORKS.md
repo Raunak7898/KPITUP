@@ -1,26 +1,23 @@
-# KPIT Task Workflow - Future Roadmap
+# Product Roadmap & Future Enhancements
 
-If given more time and resources, the following features and improvements would be prioritized for the next versions of the application.
+The current version of KPIT Task Workflow represents a solid foundation for agile management. Below are the planned iterations for scaling the platform.
 
-## 1. Real-time Synchronization
-- **Supabase Channels**: Implement `supabase.channel()` to listen for real-time `INSERT`, `UPDATE`, and `DELETE` events. This would eliminate the need for manual state refreshes and allow the UI to update instantly across multiple devices when a task is accepted or submitted.
+## 🗓 Phase 1: Real-time Collaboration (Short Term)
+- **Live Subscriptions**: Integrate Supabase Realtime to push task updates to all connected clients instantly.
+- **Presence Indicators**: Show which team members are currently online and which project boards they are viewing.
+- **Instant Messaging**: A task-specific chat sidebar to discuss deliverables without leaving the workspace.
 
-## 2. Advanced Analytics & Reporting
-- **Burndown Charts**: Visual representation of project progress.
-- **Member Performance**: Tracking points earned per member over time.
-- **Bottleneck Analysis**: Identifying which stages (e.g., 'In Review') take the longest on average.
+## 📊 Phase 2: Analytics & Gamification (Medium Term)
+- **Velocity Tracking**: Calculate how many points a team completes per week.
+- **Leaderboards**: Monthly rankings of top contributors based on approved task points.
+- **Skill Badges**: Automatically award badges to members based on the types of tasks they complete (e.g., 'React Master', 'SQL Ninja').
 
-## 3. Enhanced File Handling
-- **Task Attachments**: Allow users to upload documents or images directly to a task using Supabase Storage.
-- **Rich Text Editor**: Replace the plain description textareas with a Markdown or WYSIWYG editor for better documentation.
+## 📱 Phase 3: Platform Expansion (Long Term)
+- **Mobile Native App**: Port the React frontend to React Native for on-the-go task management.
+- **Email Notifications**: Integration with SendGrid or Resend to alert users of new assignments and review decisions.
+- **External Integrations**: GitHub/GitLab webhooks to automatically link commits to tasks.
 
-## 4. Communication Tools
-- **Task Comments**: A threaded commenting system for each task to allow for detailed discussion between members and admins during the review process.
-- **@Mentions**: Tagging team members in comments to trigger email or push notifications.
-
-## 5. Performance Optimizations
-- **Pagination/Infinite Scroll**: As the number of projects and tasks grows, the `fetchProjects` query should be paginated to reduce initial load times.
-- **Edge Functions**: Move heavy logic (like complex point calculations or report generation) to Supabase Edge Functions.
-
-## 6. Multi-Factor Authentication (MFA)
-- Add an extra layer of security for the Admin role to protect critical project data.
+## 🏗 Technical Debt & Refactoring
+- **Unit Testing**: Implement Vitest/React Testing Library for critical store actions.
+- **Edge Functions**: Offload heavy PDF report generation to Supabase Edge Functions.
+- **Strict Role Validation**: Further refine RLS to handle multi-tenant workspaces where users can be in multiple organizations.

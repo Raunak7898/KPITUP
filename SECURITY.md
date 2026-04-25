@@ -1,33 +1,33 @@
-# KPIT Task Workflow - Security Considerations
+# Security Architecture & RLS Audit
 
-Security in this application is handled at two levels: **Identity Management** (Auth) and **Data Authorization** (RLS).
+Security in KPIT Task Workflow is not a feature; it is an architectural foundation. We utilize a "Zero Trust" approach where the database protects itself regardless of client-side inputs.
 
-## Identity & Authentication
-- **Supabase Auth**: All users must be authenticated via email and password.
-- **JWT Tokens**: Every request to Supabase includes a JWT that identifies the user.
-- **Profile Roles**: The `profiles` table stores a `role` ('admin' or 'member'). This role is set at the database level and cannot be changed by the user via the frontend.
+## 🧱 Row Level Security (RLS) Deep-Dive
 
-## Row Level Security (RLS)
+### 1. The Membership Paradox (Recursion Avoidance)
+A common pitfall in project management apps is recursive policies (checking project membership to grant access to the membership table itself). 
+- **Solution**: We broke this cycle by allowing authenticated users to see all profiles, and then granting `SELECT` access to `project_members` based on a simple `auth.uid() is not null` check. This prevents Postgres from entering an infinite loop while maintaining data visibility for team collaboration.
 
-RLS is enabled on every table to prevent unauthorized access even if the frontend is manipulated.
+### 2. Role-Based Access Control (RBAC)
+We differentiate between `admin` and `member` roles using a custom Postgres Enum:
+- **Admins**: Can perform `INSERT` on `projects`, `tasks`, and `user_stories`. They have `DELETE` permissions on `projects`.
+- **Members**: Can only `UPDATE` tasks assigned to them, and only specifically to move them through the workflow states (`todo` → `in_progress` → `in_review`).
 
-### Table Policies:
+## 🛡 Vulnerability Mitigation
 
-| Table | Policy Type | Rule |
-| :--- | :--- | :--- |
-| **profiles** | SELECT | Any authenticated user can read all profiles (required for member list). |
-| **profiles** | UPDATE | Users can only update their own profile (e.g., avatar, bio). |
-| **projects** | SELECT | Users can see projects they own OR projects where they are listed in `project_members`. |
-| **projects** | INSERT | Only users with `role = 'admin'` in their profile can create projects. |
-| **tasks** | SELECT | Users can see tasks belonging to projects they have access to. |
-| **tasks** | UPDATE | Admins can update any task; Members can ONLY update status if they are the `assignee_id`. |
-| **task_reviews** | INSERT | Only project owners can insert a review record. |
+### SQL Injection
+The use of the PostgREST interface via the Supabase client inherently prevents SQL injection by treating all inputs as data parameters rather than executable code.
 
-## Data Integrity
-- **Database Triggers**: Used to enforce the workflow (e.g., setting `accepted_at` when status changes to `in_progress`).
-- **Cascade Deletes**: Deleting a project automatically wipes all associated tasks, members, and stories to prevent orphaned data.
+### XSS (Cross-Site Scripting)
+React's virtual DOM automatically escapes dynamic content. For sensitive areas (like task descriptions), we recommend using a sanitization library if HTML rendering is ever enabled.
 
-## Vulnerability Prevention
-- **SQL Injection**: Prevented by using the Supabase PostgREST client, which uses parameterized queries.
-- **XSS**: React automatically escapes data in the DOM. Custom CSS is used for styling, avoiding the inclusion of unsafe third-party script tags.
-- **Recursion Fix**: All RLS policies have been audited and fixed to avoid infinite recursion loops by simplifying the selection logic.
+### Unauthorized Data Access
+Because of our RLS policies, a user cannot simply change a `project_id` in a request and see data from a different workspace. The database will return an empty set or a permission error.
+
+## 📋 Security Checklist
+
+- [x] RLS enabled on all tables.
+- [x] Admin role locked behind backend trigger logic.
+- [x] No sensitive keys exposed (only `anon_key` is public).
+- [x] Passwords managed by Supabase Auth (Argon2 hashing).
+- [x] Database-level timestamps for all mutations.

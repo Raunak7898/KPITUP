@@ -1,52 +1,58 @@
-# KPIT Task Workflow - API Documentation
+# API & Integration Guide
 
-The application interacts with Supabase via the `@supabase/supabase-js` client. There is no traditional REST API; instead, the frontend performs direct CRUD operations filtered by RLS policies.
+The KPIT system communicates with a Supabase PostgreSQL backend using the PostgREST interface. This guide outlines the primary integration patterns.
 
-## Authentication
+## 🔑 Authentication Flow
 
-### Login
-Uses Supabase Auth `signInWithPassword`.
-- **Admin Email**: `raunak789805@gmail.com`
-- **Default Password**: `Raunak@7898`
+All requests must be authenticated. The client initializes the session using:
+```typescript
+const { data, error } = await supabase.auth.signInWithPassword({
+  email: '...',
+  password: '...',
+});
+```
+The session JWT is automatically attached to subsequent database queries by the client.
 
-### Signup
-Uses `signUp`. Triggers a profile creation in the database.
+## 📊 Database Interaction Patterns
 
-## Database Operations (Store Actions)
+### 1. Complex Joins (Fetching Projects)
+We use a nested selection string to fetch related data in a single round-trip:
+```typescript
+const { data } = await supabase
+  .from('projects')
+  .select(`
+    *,
+    project_members(*, profiles(*)),
+    tasks(*)
+  `)
+  .order('created_at', { ascending: false });
+```
 
-### Projects
-- `fetchProjects()`:
-  - **Method**: `GET`
-  - **Table**: `projects`
-  - **Joins**: `project_members`, `tasks`, `profiles`
-  - **Filtering**: Automatically filtered by RLS (only shows projects where the user is a member or owner).
+### 2. Transactional Workflows (Task Review)
+Since `reviewTask` updates a task AND inserts a review, we perform these sequentially.
+- **Update Task**: Change status to `done` or back to `in_progress`.
+- **Insert Review**: Log the comment and decision in `task_reviews`.
 
-- `addProject(input)`:
-  - **Method**: `INSERT`
-  - **Table**: `projects`
-  - **Logic**: Creates the project, then triggers a member linking loop for the workspace.
+### 3. Upsert Logic (Member Linking)
+To prevent duplicate membership records, we use `upsert` with an `onConflict` constraint:
+```typescript
+await supabase
+  .from('project_members')
+  .upsert(
+    { project_id: '...', profile_id: '...' },
+    { onConflict: 'project_id,profile_id' }
+  );
+```
 
-### Tasks
-- `addTask(taskInput)`:
-  - **Method**: `INSERT`
-  - **Table**: `tasks`
-  - **Initial Status**: `todo`
+## 🛡 Error Handling Standards
 
-- `acceptTask(taskId)`:
-  - **Method**: `UPDATE`
-  - **Table**: `tasks`
-  - **Status Change**: `todo` -> `in_progress`
-  - **Auth**: Only the assigned `assignee_id` can perform this.
+| Error Code | Meaning | Handling Strategy |
+| :--- | :--- | :--- |
+| `42P17` | Infinite Recursion | Audit RLS policies for circular subqueries. |
+| `23505` | Unique Violation | Inform the user (e.g., "Member already in project"). |
+| `42501` | Permission Denied | Check RLS policies for the current authenticated role. |
+| `PGRST116` | No rows returned | Check `.single()` vs `.maybeSingle()`. |
 
-- `submitTaskForReview(taskId)`:
-  - **Method**: `UPDATE`
-  - **Table**: `tasks`
-  - **Status Change**: `in_progress` -> `in_review`
-
-- `reviewTask(taskId, decision, comment)`:
-  - **Method**: `UPDATE` (tasks) + `INSERT` (task_reviews)
-  - **Status Change**: `in_review` -> `done` (Approve) OR `in_review` -> `in_progress` (Reject)
-  - **Auth**: Only the project owner (Admin) can perform this.
-
-## Real-time Notifications
-The system uses the `notifications` array in the Zustand store. Notifications are triggered locally after successful Supabase mutations to provide immediate feedback to the current user.
+## 🚀 Performance Notes
+- **Selective Fetching**: Only columns required for the UI are selected in high-frequency queries.
+- **Resilient Fallbacks**: The `fetchProjects` method includes a fallback to a simpler query if the full schema (including tasks) is partially unavailable during migrations.
