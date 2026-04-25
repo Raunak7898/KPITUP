@@ -1,5 +1,11 @@
 # KPIT Task Workflow
-**Agile Project Management for High-Performance Teams**
+**Full-Stack Project Delivery & Task Management System**
+
+## Walkthrough Video
+📽️ **Watch the project in action:** [Walkthrough Video](https://drive.google.com/file/d/1fFiX7atMWmQoF-jtJ8XR1GvbarTo9g2w/view?usp=sharing)
+
+---
+
 `React` `TypeScript` `Zustand` `Supabase` `PostgreSQL` `TailwindCSS`
 
 A premium, full-stack agile project management tool built to streamline collaboration between admins and contributors. 
@@ -19,6 +25,31 @@ A premium, full-stack agile project management tool built to streamline collabor
 - [9. 🔒 Security Considerations](#9--security-considerations)
 - [10. 🤖 AI Usage](#10--ai-usage)
 - [11. 🔮 What I'd Improve or Build Next](#11--what-id-improve-or-build-next)
+
+---
+
+## ⚡ Quick Start / Preview
+
+To see a live preview of the project on your local machine:
+
+### 1. Run the Application
+```bash
+cd frontend
+npm install
+npm run dev
+```
+Open [http://localhost:5173](http://localhost:5173) in your browser.
+
+### 2. Test Credentials
+| Role | Email | Password |
+| :--- | :--- | :--- |
+| **Admin** | `raunak789805@gmail.com` | `Raunak@7898` |
+| **Member** | Create any new account via Signup | User-defined |
+
+### 3. Essential Database Fixes
+Before testing, ensure you have run these SQL scripts in your Supabase SQL Editor:
+- [database/patches/fix_delete_logic.sql](file:///c:/Users/rauna/KPIT/database/patches/fix_delete_logic.sql) (For project deletion)
+- [database/patches/enable_realtime.sql](file:///c:/Users/rauna/KPIT/database/patches/enable_realtime.sql) (For live updates)
 
 ---
 
@@ -86,16 +117,12 @@ graph TD
 ### Application Structure
 ```text
 KPIT/
-├── frontend/
-│   ├── src/
-│   │   ├── components/    # Reusable UI (Cards, Modals, TopBar, Sidebar)
-│   │   ├── pages/         # Route-level components (Projects, Dashboard, Login)
-│   │   ├── store.ts       # Centralized Zustand state management & DB calls
-│   │   ├── supabase.ts    # Supabase client initialization
-│   │   ├── types.ts       # Shared TypeScript interfaces
-│   │   └── index.css      # Design tokens and custom styling
-│   └── tailwind.config.cjs
-└── *.sql                  # Supabase database migration and schema scripts
+├── database/          # Database configuration
+│   ├── setup/         # Core schema setup (01-08)
+│   └── patches/       # Functional fixes and enhancements
+├── docs/              # Detailed documentation
+├── frontend/          # React application
+└── README.md
 ```
 
 ---
@@ -130,12 +157,20 @@ npm run dev
 ### ② Database Migration (Crucial)
 The application logic relies heavily on custom SQL. Execute these files in your Supabase SQL Editor in the exact order:
 
-1. `supabase_schema.sql` — Initializes enums and core tables.
-2. `supabase_profiles.sql` — Sets up user tracking and signup triggers.
-3. `supabase_projects.sql` — Configures project and member tables.
-4. `supabase_tasks.sql` — Adds tasks, reviews, and workflow enforcement.
-5. `supabase_policies.sql` — Baseline Row Level Security.
-6. **`supabase_migration_task_fix.sql`** — Master patch for recursion fixes, point columns, and admin bypasses.
+#### Core Setup (`database/setup/`)
+1. `01_schema.sql` — Initializes enums and core tables.
+2. `02_profiles.sql` — Sets up user tracking and signup triggers.
+3. `03_projects.sql` — Configures project and member tables.
+4. `04_stories.sql` — Sets up the User Stories table.
+5. `05_tasks.sql` — Adds tasks, reviews, and workflow enforcement.
+6. `06_notifications.sql` — Configures the notifications system.
+7. `07_calendar.sql` — Sets up project/member deadlines.
+8. `08_policies.sql` — Baseline Row Level Security.
+
+#### Important Patches (`database/patches/`)
+- `master_patch.sql` — Master patch for recursion fixes and point columns.
+- `fix_delete_logic.sql` — Enforces `ON DELETE CASCADE` for projects.
+- `enable_realtime.sql` — Enables Supabase Realtime publications.
 
 ---
 
@@ -281,3 +316,5 @@ All business logic, workflow constraints, and core architectural decisions were 
 | **Email Notifications** | Trigger Edge Functions on task assignments to send email alerts via Resend or SendGrid. |
 | **GitHub Integration** | Webhooks to automatically link PRs to tasks and transition statuses. |
 | **Mobile Application** | Wrap the responsive UI in React Native for native iOS/Android experiences. |
+
+

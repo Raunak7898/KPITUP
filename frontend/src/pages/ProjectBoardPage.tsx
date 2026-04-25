@@ -88,8 +88,6 @@ export default function ProjectBoardPage() {
   };
 
   const handleDeleteProject = async () => {
-    console.log('handleDeleteProject triggered');
-    alert('Delete process initiated...');
     await deleteProject(project.id);
     navigate(isAdmin ? '/admin' : '/dashboard');
   };

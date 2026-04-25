@@ -48,10 +48,8 @@ export default function ProjectsPage() {
     event.preventDefault();
     event.stopPropagation();
     
-    console.log('ProjectsPage handleDeleteProject triggered for:', projectId);
     if (window.confirm(`Are you sure you want to delete "${projectName}"? This action cannot be undone.`)) {
       await deleteProject(projectId);
-      alert('Delete request sent to database.');
     }
   };
 

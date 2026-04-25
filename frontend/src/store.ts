@@ -5,8 +5,7 @@ import { supabase } from './lib/supabaseClient';
 
 // ── Status / priority mapping between UI strings and DB enums ──────────────
 // toDbStatus is intentionally kept for future use when updateTask needs it
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-const _toDbStatus = (s: Status): string =>
+const toDbStatus = (s: Status): string =>
   ({ 'To Do': 'todo', 'In Progress': 'in_progress', 'In Review': 'in_review', 'Done': 'done' }[s] ?? 'todo');
 
 const fromDbStatus = (s: string): Status =>
@@ -84,6 +83,7 @@ interface AppState {
   addTask: (projectId: string, task: CreateTaskInput) => Promise<void>;
   updateTask: (projectId: string, taskId: string, updates: Partial<Task>) => void;
   deleteTask: (projectId: string, taskId: string) => Promise<void>;
+  subscribeToChanges: () => void;
   addMember: (projectId: string, member: InviteMemberInput) => void;
   addMemberDeadline: (input: CreateMemberDeadlineInput) => { success: boolean; message: string };
   deleteMemberDeadline: (deadlineId: string) => void;
@@ -426,6 +426,8 @@ export const useStore = create<AppState>()(
           });
           // Load all projects + tasks from DB
           await useStore.getState().fetchProjects();
+          // Start real-time subscription
+          useStore.getState().subscribeToChanges();
         }
 
         supabase.auth.onAuthStateChange(async (_event, session) => {
@@ -459,6 +461,8 @@ export const useStore = create<AppState>()(
             }
 
             await useStore.getState().fetchProjects();
+            // Start real-time subscription
+            useStore.getState().subscribeToChanges();
           } else {
             set({ currentUser: null });
           }
@@ -560,6 +564,49 @@ export const useStore = create<AppState>()(
         });
 
         set({ projects: mappedProjects });
+      },
+
+      subscribeToChanges: () => {
+        const fetch = useStore.getState().fetchProjects;
+        
+        // Clean up any existing channels to prevent subscription errors
+        supabase.removeAllChannels();
+
+        supabase
+          .channel('app-realtime-sync')
+          .on(
+            'postgres_changes',
+            { event: '*', schema: 'public', table: 'projects' },
+            () => {
+              console.log('Realtime: Projects updated');
+              fetch();
+            }
+          )
+          .on(
+            'postgres_changes',
+            { event: '*', schema: 'public', table: 'tasks' },
+            () => {
+              console.log('Realtime: Tasks updated');
+              fetch();
+            }
+          )
+          .on(
+            'postgres_changes',
+            { event: '*', schema: 'public', table: 'project_members' },
+            () => {
+              console.log('Realtime: Membership updated');
+              fetch();
+            }
+          )
+          .on(
+            'postgres_changes',
+            { event: '*', schema: 'public', table: 'user_stories' },
+            () => {
+              console.log('Realtime: Stories updated');
+              fetch();
+            }
+          )
+          .subscribe();
       },
 
       login: (user) =>
@@ -753,58 +800,34 @@ export const useStore = create<AppState>()(
           ),
         }));
       },
-      updateProject: (projectId, updates) =>
+      updateProject: async (projectId, updates) => {
+        const { error } = await supabase.from('projects').update(updates).eq('id', projectId);
+        if (error) {
+          console.error('Error updating project:', error);
+          return;
+        }
         set((state) => ({
           projects: state.projects.map((project) =>
             project.id === projectId ? { ...project, ...updates } : project
           ),
-        })),
+        }));
+      },
 
       deleteProject: async (projectId) => {
-        console.log('--- STARTING DELETE PROJECT ---');
-        console.log('Target Project ID:', projectId);
-        
         const state = useStore.getState();
-        const session = await supabase.auth.getSession();
-        
-        if (!session.data.session) {
-          alert('Error: No active session found. Please log in again.');
-          return;
-        }
-
-        console.log('Auth UID:', session.data.session.user.id);
-        console.log('Current User Role:', state.currentUser?.role);
-
-        if (state.currentUser?.role !== 'admin') {
-          alert(`Error: Permission Denied. Your role is "${state.currentUser?.role}". Admin role is required.`);
-          return;
-        }
+        if (state.currentUser?.role !== 'admin') return;
 
         const project = state.projects.find((p) => p.id === projectId);
-        if (!project) {
-          alert('Error: Project not found in local state.');
-          return;
-        }
+        if (!project) return;
 
-        if (!window.confirm(`FINAL CONFIRMATION: Delete project "${project.name}" from the database?`)) {
-          return;
-        }
-
-        const { error } = await supabase
-          .from('projects')
-          .delete()
-          .eq('id', projectId);
-
+        const { error } = await supabase.from('projects').delete().eq('id', projectId);
         if (error) {
-          console.error('DATABASE ERROR:', error);
-          alert(`DATABASE ERROR: ${error.message}\nCode: ${error.code}\nDetail: ${error.details}`);
+          console.error('Error deleting project:', error);
+          alert(`Database Error: ${error.message}`);
           return;
         }
 
-        console.log('DB Delete Successful');
-        alert('Project successfully deleted from database!');
-
-        console.log('Project deleted successfully from DB');
+        alert('Project deleted successfully!');
 
         set((state) => ({
           projects: state.projects.filter((p) => p.id !== projectId),
@@ -929,45 +952,59 @@ export const useStore = create<AppState>()(
         }));
       },
 
-      updateTask: (projectId, taskId, updates) =>
-        set((state) => {
-          if (state.currentUser?.role !== 'admin') {
-            return state;
-          }
+      updateTask: async (projectId, taskId, updates) => {
+        const state = useStore.getState();
+        if (state.currentUser?.role !== 'admin') return;
 
-          return {
-            projects: state.projects.map((project) => {
-              if (project.id !== projectId) {
-                return project;
-              }
+        const project = state.projects.find((p) => p.id === projectId);
+        if (!project) return;
 
-              return {
-                ...project,
-                tasks: project.tasks.map((task) => {
-                  if (task.id !== taskId) {
-                    return task;
+        // Prepare DB updates
+        const dbUpdates: any = {};
+        if (updates.title) dbUpdates.title = updates.title;
+        if (updates.description) dbUpdates.description = updates.description;
+        if (updates.priority) dbUpdates.priority = toDbPriority(updates.priority);
+        if (updates.status) dbUpdates.status = toDbStatus(updates.status);
+        if (updates.assigneeId) dbUpdates.assignee_id = updates.assigneeId;
+        if (updates.dueDate) dbUpdates.due_date = updates.dueDate;
+        if (updates.points !== undefined) dbUpdates.points = updates.points;
+
+        const { error } = await supabase.from('tasks').update(dbUpdates).eq('id', taskId);
+        if (error) {
+          console.error('Error updating task in DB:', error);
+          return;
+        }
+
+        // Local state update
+        set((state) => ({
+          projects: state.projects.map((project) => {
+            if (project.id !== projectId) return project;
+
+            return {
+              ...project,
+              tasks: project.tasks.map((task) => {
+                if (task.id !== taskId) return task;
+
+                if (updates.assigneeId) {
+                  const nextAssignee = project.members.find((member) => member.id === updates.assigneeId);
+                  if (nextAssignee) {
+                    return {
+                      ...task,
+                      ...updates,
+                      assigneeId: nextAssignee.id,
+                      assigneeName: nextAssignee.name,
+                      assigneeEmail: nextAssignee.email,
+                      assigneeAvatar: nextAssignee.avatar,
+                    };
                   }
+                }
 
-                  if (updates.assigneeId) {
-                    const nextAssignee = project.members.find((member) => member.id === updates.assigneeId);
-                    if (nextAssignee) {
-                      return {
-                        ...task,
-                        ...updates,
-                        assigneeId: nextAssignee.id,
-                        assigneeName: nextAssignee.name,
-                        assigneeEmail: nextAssignee.email,
-                        assigneeAvatar: nextAssignee.avatar,
-                      };
-                    }
-                  }
-
-                  return { ...task, ...updates };
-                }),
-              };
-            }),
-          };
-        }),
+                return { ...task, ...updates };
+              }),
+            };
+          }),
+        }));
+      },
 
       deleteTask: async (projectId, taskId) => {
         const { error } = await supabase.from('tasks').delete().match({ id: taskId });
